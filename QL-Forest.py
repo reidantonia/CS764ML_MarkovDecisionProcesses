@@ -1,9 +1,10 @@
-import mdptoolbox.example
 import numpy as np
 
 from matplotlib import pyplot as plt
 from matplotlib import colors
 from hiive.mdptoolbox import mdp
+from hiive.mdptoolbox import example
+
 import matplotlib
 import matplotlib.patches
 import random
@@ -159,7 +160,7 @@ def run_forest(size):
     r2 = 50  # The reward when the forest is in its oldest state and action ‘Cut’ is performed
     p = 0.1
 
-    P, R = mdptoolbox.example.forest(S=S, r1=r1, r2=r2, p=p)  # Defaults left the same
+    P, R = example.forest(S=S, r1=r1, r2=r2, p=p)  # Defaults left the same
 
     epsilons = [100, 10, 1, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001]
     epsilons = [0.00001, 0.000001]

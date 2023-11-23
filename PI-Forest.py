@@ -1,12 +1,10 @@
-import mdptoolbox.example
 import numpy as np
-from hiive.mdptoolbox import mdp
+from hiive.mdptoolbox import mdp, example
 from matplotlib import pyplot as plt
 from matplotlib import colors
 import matplotlib
 import matplotlib.patches
 import random
-
 
 # Citation: https://learning.oreilly.com/library/view/reinforcement-learning-algorithms/9781789131116/7c6dfed0-1180-49fe-84a0-ea62131b5947.xhtml
 

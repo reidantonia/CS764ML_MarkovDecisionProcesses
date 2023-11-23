@@ -6,13 +6,11 @@ import matplotlib
 from gym.envs.toy_text.frozen_lake import generate_random_map
 import random
 
-
-# Citation: https://github.com/udacity/deep-reinforcement-learning/blob/b23879aad656b653753c95213ebf1ac111c1d2a6/dynamic-programming/plot_utils.py
 def plot_values(V, P, dim):
-    # reshape value function
+
     V_sq = np.reshape(V, (dim, dim))
     P_sq = np.reshape(P, (dim, dim))
-    # plot the state-value function
+
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
     im = ax.imshow(V_sq, cmap='cool')
@@ -23,10 +21,7 @@ def plot_values(V, P, dim):
 
     for (j, i), label in np.ndenumerate(V_sq):
         ax.text(i, j, np.round(label, 2), ha='center', va='top', fontsize=fontSize)
-        # LEFT = 0
-        # DOWN = 1
-        # RIGHT = 2
-        # UP = 3
+
         if np.round(label, 3) > -0.09  and P_sq[j][i] == 0:
             ax.text(i, j, 'LEFT', ha='center', va='bottom', fontsize=fontSize)
         elif np.round(label, 2) > -0.09  and P_sq[j][i] == 1:
@@ -42,10 +37,6 @@ def plot_values(V, P, dim):
     plt.savefig('Images\\VI-FL-Plot_vals' + str(dim) + '.png')
     plt.show()
 
-
-# Citation: https://learning.oreilly.com/library/view/reinforcement-learning-algorithms/9781789131116/7c6dfed0-1180-49fe-84a0-ea62131b5947.xhtml
-
-# Citation: https://matplotlib.org/3.1.1/gallery/images_contours_and_fields/image_annotated_heatmap.html
 def heatmap(data, row_labels, col_labels, ax=None, cbar_kw={}, cbarlabel="", **kwargs):
     """
     Create a heatmap from a numpy array and two lists of labels.
@@ -72,31 +63,25 @@ def heatmap(data, row_labels, col_labels, ax=None, cbar_kw={}, cbarlabel="", **k
     if not ax:
         ax = plt.gca()
 
-    # Plot the heatmap
     im = ax.imshow(data, **kwargs)
 
-    # Create colorbar
     cbar = ax.figure.colorbar(im, ax=ax, **cbar_kw)
     cbar.ax.set_ylabel(cbarlabel, rotation=-90, va="bottom")
 
-    # We want to show all ticks...
     ax.set_xticks(np.arange(data.shape[1]))
     ax.set_yticks(np.arange(data.shape[0]))
-    # ... and label them with the respective list entries.
+
     ax.set_xticklabels(col_labels)
     ax.set_yticklabels(row_labels)
 
-    # Let the horizontal axes labeling appear on top.
     ax.tick_params(top=True, bottom=False,
                    labeltop=True, labelbottom=False)
 
-    # Rotate the tick labels and set their alignment.
     plt.setp(ax.get_xticklabels(), rotation=-30, ha="right",
              rotation_mode="anchor")
     plt.title('epsilon')
     plt.ylabel('gamma')
 
-    # Turn spines off and create white grid.
     for edge, spine in ax.spines.items():
         spine.set_visible(False)
 
@@ -106,7 +91,6 @@ def heatmap(data, row_labels, col_labels, ax=None, cbar_kw={}, cbarlabel="", **k
     ax.tick_params(which="minor", bottom=False, left=False)
 
     return im, cbar
-
 
 def annotate_heatmap(im, data=None, valfmt="{x:.2f}", textcolors=["black", "white"], threshold=None, **textkw):
     """
@@ -137,24 +121,18 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}", textcolors=["black", "whit
     if not isinstance(data, (list, np.ndarray)):
         data = im.get_array()
 
-    # Normalize the threshold to the images color range.
     if threshold is not None:
         threshold = im.norm(threshold)
     else:
         threshold = im.norm(data.max()) / 2.
 
-    # Set default alignment to center, but allow it to be
-    # overwritten by textkw.
     kw = dict(horizontalalignment="center",
               verticalalignment="center")
     kw.update(textkw)
 
-    # Get the formatter in case a string is supplied
     if isinstance(valfmt, str):
         valfmt = matplotlib.ticker.StrMethodFormatter(valfmt)
 
-    # Loop over the data and create a `Text` for each "pixel".
-    # Change the text's color depending on the data.
     texts = []
     for i in range(data.shape[0]):
         for j in range(data.shape[1]):
@@ -164,10 +142,8 @@ def annotate_heatmap(im, data=None, valfmt="{x:.2f}", textcolors=["black", "whit
 
     return texts
 
-
 def eval_state_action(env, V, s, a, gamma=0.99):
     return np.sum([p * ((rew - 0.01 * _) + gamma * V[next_s]) for p, next_s, rew, _ in env.P[s][a]])
-
 
 def value_iteration(env, nA, nS, epsilon=0.0001, gamma=0.99):
     V = np.zeros(nS)
@@ -176,21 +152,19 @@ def value_iteration(env, nA, nS, epsilon=0.0001, gamma=0.99):
     avg_V = []
     while True:
         delta = 0
-        # update the value for each state
+
         for s in range(nS):
             old_v = V[s]
-            V[s] = np.max([eval_state_action(env, V, s, a, gamma) for a in range(nA)])  # equation 3.10
+            V[s] = np.max([eval_state_action(env, V, s, a, gamma) for a in range(nA)])
             delta = max(delta, np.abs(old_v - V[s]))
-        # if stable, break the cycle
+
         delta_vals.append(delta)
         avg_V.append(np.mean(V))
         if delta < epsilon:
             break
-        # else:
-        #    print('Iter:', it, ' delta:', np.round(delta, 5))
+
         it += 1
     return V, delta_vals, it, avg_V
-
 
 def run_vi_episodes(env, V, nA, num_games=100, gamma=0.99):
     tot_rew = 0
@@ -201,8 +175,8 @@ def run_vi_episodes(env, V, nA, num_games=100, gamma=0.99):
         done = False
 
         while not done:
-            # choose the best action using the value function
-            action = np.argmax([eval_state_action(env, V, state, a, gamma) for a in range(nA)])  # (11)
+
+            action = np.argmax([eval_state_action(env, V, state, a, gamma) for a in range(nA)])
             next_state, reward, done, _ = env.step(action)
             state = next_state
             tot_rew += reward
@@ -215,9 +189,7 @@ def run_vi_episodes(env, V, nA, num_games=100, gamma=0.99):
                 tot_rew += 0
                 max_run = 0
 
-    # print('Won %i of %i games!' % (tot_rew, num_games))
     return float(tot_rew / num_games)
-
 
 def run_fl(size):
     seed_val = 42
@@ -235,9 +207,7 @@ def run_fl(size):
         env = gym.make("FrozenLake-v0", desc=random_map)
     env.seed(seed_val)
     env.reset()
-    # env.render()
 
-    # env = gym.make('FrozenLake8x8-v0')
     env = env.unwrapped
 
     nA = env.action_space.n
@@ -284,7 +254,7 @@ def run_fl(size):
                 V, delta_vals, iterations, avg_V = value_iteration(env, nA, nS, epsilon=e, gamma=g)
 
                 run_time = time.time() - start
-                #per_won = run_vi_episodes(env, V, nA, 1000)
+
                 per_won = 0
                 per_won_hm[g_cnt][e_cnt] = per_won
                 iters_hm[g_cnt][e_cnt] = iterations
@@ -302,7 +272,6 @@ def run_fl(size):
     print(best_e, best_g)
     print(avg_V)
 
-    # Plot Percent Games Won Heatmap
     fig, ax = plt.subplots()
 
     im, cbar = heatmap(per_won_hm, gammas, epsilons, ax=ax,
@@ -313,7 +282,6 @@ def run_fl(size):
     plt.savefig('Images\\VI-FL-Per_Heatmap' + str(size) + '.png')
     plt.show()
 
-    # Plot Iterations Heatmap
     fig, ax = plt.subplots()
 
     im, cbar = heatmap(iters_hm, gammas, epsilons, ax=ax,
@@ -324,7 +292,6 @@ def run_fl(size):
     plt.savefig('Images\\VI-FL-Iter_Heatmap' + str(size) + '.png')
     plt.show()
 
-    # Plot Run time Heatmap
     fig, ax = plt.subplots()
 
     im, cbar = heatmap(time_hm, gammas, epsilons, ax=ax,
@@ -335,7 +302,6 @@ def run_fl(size):
     plt.savefig('Images\\VI-FL-Time_Heatmap' + str(size) + '.png')
     plt.show()
 
-    # Plot Delta vs iterations
     fig, ax1 = plt.subplots()
     color = 'tab:red'
     ax1.set_xlabel('iterations')
@@ -343,7 +309,7 @@ def run_fl(size):
     ax1.semilogy(delta_vals, color=color)
     ax1.tick_params(axis='y', labelcolor=color)
 
-    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    ax2 = ax1.twinx()
     color = 'tab:blue'
     ax2.set_ylabel('Avg V', color=color)
     ax2.semilogy(avg_V, color=color)
@@ -368,14 +334,10 @@ def run_fl(size):
     print(best_e, best_g, best_won)
     optimal_policy = extract_policy(V, gamma=best_g)
 
-    # Plot Optimal state values with directions
     print(V.reshape((size, size)))
     print(optimal_policy.reshape((size, size)))
 
     plot_values(V, optimal_policy, size)
-
-    # Plot optimal policy and expected return
-
 
 run_fl(4)
 run_fl(16)
