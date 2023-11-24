@@ -198,11 +198,9 @@ def run_simulations():
         faster_convergence = 5 if convergence_info[5]['avg_iterations'] < convergence_info[10]['avg_iterations'] else 10
         print(f"Grid size {faster_convergence} converges faster on average.")
 
-        same_policy = all(
-            np.array_equal(convergence_info[5]['policies'][i], convergence_info[20]['policies'][i]) for i in
+        same_policy = all(np.array_equal(convergence_info[5]['policies'][i], convergence_info[20]['policies'][i]) for i in
             range(NUM_RUNS))
         print(f"Do they converge to the same answer? {'Yes' if same_policy else 'No'}")
-
         print("Larger grid sizes have more states, which generally increases the complexity and iterations needed for convergence.")
 
 run_simulations()
