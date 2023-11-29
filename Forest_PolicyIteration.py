@@ -1,71 +1,94 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import random
 from hiive.mdptoolbox import mdp, example
-import seaborn
+import seaborn as sns
 
-RANDOM_SEED = 20
-NUM_RUNS = 100
+def initialize_forest(size, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
 
-def initialize_forest(size, seed=RANDOM_SEED):
-    random.seed(seed)
-    P, R = example.forest(S=size, r1=4, r2=2, p=0.1)
+    r1 = 10
+    r2 = 2
+    p = 0.1
+    print(f"Initializing forest with size: {size}, reward for cutting: {r1}, reward for waiting: {r2}, fire probability: {p}")
+
+    P, R = example.forest(S=size, r1=r1, r2=r2, p=p)
     return P, R
-def create_forest_heatmap(values, size, title, filename_suffix, run):
-    fig, ax = plt.subplots()
 
-    ax.bar(range(size), values, color='blue')
-    ax.set_ylabel('State Values')
-    ax.set_xlabel('States')
-    ax.set_title(title)
+def plot_policy(policy, size, title, filename):
 
-    plt.savefig(f'Images/Forest_{size}_Values{run}_{filename_suffix}.png')
+    fig, ax = plt.subplots(figsize=(6, 6))
+
+    sns.heatmap(np.array(policy).reshape(-1, 1), annot=False, cmap='Set1', cbar=False, linewidths=0, ax=ax)
+
+    ax.set_title(title, fontsize=12)
+    ax.set_xlabel('Action', fontsize=10)
+    ax.set_ylabel('State', fontsize=10)
+
+    ax.set_yticks(np.arange(0, size, max(1, size // 10)))
+    ax.set_yticklabels(np.arange(0, size, max(1, size // 10)).astype(int), fontsize=8)
+
+    ax.set_xticks([])
+
+    fig.tight_layout()
+
+    plt.savefig(f'Images/{filename}', dpi=300)
     plt.close()
 
-def perform_forest_policy_iteration(P, R, size, discount_factor=0.99, epsilon=0.01):
-    vi = mdp.ValueIteration(P, R, discount_factor, epsilon=epsilon)
-    vi.run()
+def plot_value_function(values, title, filename):
+    num_states = len(values)
+    plt.figure(figsize=(6, 6))
+    plt.plot(range(1, num_states + 1), values, marker='o')
+    plt.title(title)
+    plt.xlabel('State')
+    plt.ylabel('Value')
 
-    policy_history = [vi.policy]
-    value_history = [vi.V]
+    if num_states <= 50:
+        plt.xticks(range(1, num_states + 1))
+    else:
+        plt.xticks(range(1, num_states + 1, num_states // 10))
 
-    return vi.V, vi.policy, policy_history, value_history
+    plt.grid(True)
+    plt.savefig(f'Images/function_{filename}')
+    plt.close()
 
-def run_forest_simulations():
-    convergence_info = {}
-    for size in [210, 300]:
-        cumulative_values = []
-        cumulative_policies = []
-        iteration_counts = []
+def perform_policy_iteration(P, R, discount_factor=0.99):
+    pi = mdp.PolicyIteration(P, R, discount_factor)
+    pi.run()
 
-        P, R = initialize_forest(size)
+    plot_title = f"Value Function with Discount Factor {discount_factor}"
+    filename = f"Forest_PI_Value_Function_DF_{discount_factor}.png"
+    plot_value_function(pi.V, plot_title, filename)
 
-        for run in range(NUM_RUNS):
-            values, policy, policy_history, value_history = perform_forest_policy_iteration(P, R, size)
+    return pi.V, pi.policy, pi.iter
 
-            cumulative_values.append(values)
-            cumulative_policies.append(policy)
-            iteration_counts.append(len(policy_history))
+def run_forest_policy_iteration(size, discount_factors, seed=None):
+    iteration_counts = []
+    max_values = []
+    mean_values = []
 
-            create_forest_heatmap(values, size, f'State Values for {size}x{size} Grid', 'policy_iteration', run)
+    P, R = initialize_forest(size, seed)
 
-        avg_iterations = np.mean(iteration_counts)
-        convergence_info[size] = {
-            'avg_iterations': avg_iterations,
-            'values': np.mean(cumulative_values, axis=0),
-            'policies': cumulative_policies
-        }
+    for discount_factor in discount_factors:
+        values, policy, iterations = perform_policy_iteration(P, R, discount_factor)
+        policy_title = f"Policy for Forest Size {size} with Discount Factor {discount_factor}"
+        policy_filename = f"Forest_PI_{size}_Policy_DF_{discount_factor}.png"
+        plot_policy(policy, size, policy_title, policy_filename)
 
-        print(f"Size {size} - Average iterations to converge: {avg_iterations}")
-        print(f"Size {size} - Average Max V: {np.max(convergence_info[size]['values'])}, Average Mean V: {np.mean(convergence_info[size]['values'])}")
+        iteration_counts.append(iterations)
+        max_values.append(np.max(values))
+        mean_values.append(np.mean(values))
 
-    if all(size in convergence_info for size in [210, 300]):
-        print("\nConvergence Comparison:")
-        faster_convergence = 210 if convergence_info[210]['avg_iterations'] < convergence_info[300]['avg_iterations'] else 300
-        print(f"Grid size {faster_convergence} converges faster on average.")
+    avg_iterations = np.mean(iteration_counts)
+    std_dev_iterations = np.std(iteration_counts)
+    avg_max_v = np.mean(max_values)
+    avg_mean_v = np.mean(mean_values)
+    print(f"Grid Size: {size}, Discount Factor: {discount_factor}")
+    print(f"Average Iterations: {avg_iterations}, Std Dev of Iterations: {std_dev_iterations}")
+    print(f"Average Max V: {avg_max_v}, Average Mean V: {avg_mean_v}")
 
-        same_policy = all(np.array_equal(convergence_info[210]['policies'][i], convergence_info[300]['policies'][i]) for i in range(NUM_RUNS))
-        print(f"Do they converge to the same answer? {'Yes' if same_policy else 'No'}")
-        print("Larger grid sizes have more states, which generally increases the complexity and iterations needed for convergence.")
+forest_sizes = [500, 1000]
+discount_factors = [0.9, 0.99, 0.999]
 
-run_forest_simulations()
+for size in forest_sizes:
+    run_forest_policy_iteration(size, discount_factors, seed=20)

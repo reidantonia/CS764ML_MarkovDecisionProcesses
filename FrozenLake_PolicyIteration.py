@@ -14,8 +14,7 @@ def initialize_environment(lake_size, map_seed=RANDOM_SEED):
     environment = gym.make("FrozenLake-v1", desc=lake_map)
     return environment.unwrapped
 
-def create_heatmap(values, grid_size, title, filename_suffix, run):
-
+def create_heatmap(values, grid_size, title, filename_suffix, run, discount_factor, convergence_threshold):
     reshaped_values = np.reshape(values, (grid_size, grid_size))
 
     fig, ax = plt.subplots()
@@ -37,26 +36,7 @@ def create_heatmap(values, grid_size, title, filename_suffix, run):
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
     plt.title(title)
 
-    plt.savefig(f'Images/FrozenLake_PI_Size{grid_size}_Values{run}_{filename_suffix}.png')
-    plt.close()
-
-def plot_policy(V, policy, size, filename_suffix):
-    V_sq = np.reshape(V, (size, size))
-    P_sq = np.reshape(policy, (size, size))
-
-    fig, ax = plt.subplots(figsize=(10, 10))
-    im = ax.imshow(V_sq, cmap='cool')
-    fontSize = 20 if size < 10 else 10
-
-    for (j, i), label in np.ndenumerate(V_sq):
-        ax.text(i, j, np.round(label, 2), ha='center', va='center', fontsize=fontSize)
-        action = ['LEFT', 'DOWN', 'RIGHT', 'UP'][P_sq[j][i]]
-        ax.text(i, j, action, ha='center', va='bottom', fontsize=fontSize)
-
-    ax.set_xticks([])
-    ax.set_yticks([])
-    plt.title('State-Value Function and Policy')
-    plt.savefig(f'Images/FrozenLake_PI_Size{size}_{filename_suffix}.png')
+    plt.savefig(f'Images/FrozenLake_PI_Size{grid_size}_DF{discount_factor}_CT{convergence_threshold}_Values{run}_{filename_suffix}.png')
     plt.close()
 
 def perform_policy_iteration(environment, discount_factor=0.99, convergence_threshold=0.0001, track_detailed=False):
@@ -91,10 +71,8 @@ def perform_policy_iteration(environment, discount_factor=0.99, convergence_thre
             current_policy[state] = np.argmax(action_values)
             if old_action != current_policy[state]:
                 is_policy_stable = False
-
         if is_policy_stable:
             break
-
     if track_detailed:
 
         max_values = [np.max(V) for V in value_history]
@@ -142,7 +120,7 @@ def plot_policy_convergence(policy_history, grid_size, run, suffix):
     plt.savefig(f'Images/FrozenLake_PolicyConvergence_{grid_size}_{run}_{suffix}.png')
     plt.close()
 
-def visualize_detailed_convergence(max_values, mean_values, grid_size, run_number):
+def visualize_detailed_convergence(max_values, mean_values, grid_size, run_number, discount_factor, convergence_threshold):
     plt.figure(figsize=(12, 6))
     plt.subplot(1, 2, 1)
     plt.plot(max_values, label='Max V')
@@ -161,41 +139,64 @@ def visualize_detailed_convergence(max_values, mean_values, grid_size, run_numbe
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig(f'Images/FrozenLake_PI_Conv_Size{grid_size}_Run{run_number}.png')
+    plt.savefig(f'Images/FrozenLake_PI_Conv_Size{grid_size}_DF{discount_factor}_CT{convergence_threshold}_Run{run_number}.png')
     plt.close()
 
 def run_simulations():
     convergence_info = {}
+
     for grid_size in [5, 20]:
-        cumulative_values = []
-        cumulative_policies = []
-        iteration_counts = []
+        for discount_factor in [0.9, 0.99]:
+            for convergence_threshold in [0.0001, 0.001]:
+                cumulative_values = []
+                cumulative_policies = []
+                iteration_counts = []
 
-        for run in range(NUM_RUNS):
-            env = initialize_environment(grid_size)
-            values, policy, policy_history, max_values, mean_values = perform_policy_iteration(env, track_detailed=True)
+                for run in range(NUM_RUNS):
+                    env = initialize_environment(grid_size)
+                    values, policy, policy_history, max_values, mean_values = perform_policy_iteration(
+                        env,
+                        discount_factor=discount_factor,
+                        convergence_threshold=convergence_threshold,
+                        track_detailed=True
+                    )
+                    cumulative_values.append(values)
+                    cumulative_policies.append(policy)
+                    iteration_counts.append(len(policy_history))
 
-            cumulative_values.append(values)
-            cumulative_policies.append(policy)
-            iteration_counts.append(len(policy_history))
+                    create_heatmap(values, grid_size, f'State Values for {grid_size}x{grid_size} Grid', 'heatmap', run, discount_factor, convergence_threshold)
+                    plot_policy_convergence(policy_history, grid_size, run, 'policy_cov')
+                    visualize_detailed_convergence(max_values, mean_values, grid_size, run, discount_factor, convergence_threshold)
 
-            create_heatmap(values, grid_size, f'State Values for {grid_size}x{grid_size} Grid', 'heatmap', run)
-            plot_policy_convergence(policy_history, grid_size, run, 'policy_cov')
-            visualize_detailed_convergence(max_values, mean_values, grid_size, run)
+                avg_iterations = np.mean(iteration_counts)
+                convergence_info[grid_size] = {
+                    'avg_iterations': avg_iterations,
+                    'values': np.mean(cumulative_values, axis=0),
+                    'policies': cumulative_policies
+                }
 
-        avg_iterations = np.mean(iteration_counts)
-        convergence_info[grid_size] = {
-            'avg_iterations': avg_iterations,
-            'values': np.mean(cumulative_values, axis=0),
-            'policies': cumulative_policies
-        }
+                avg_iterations = np.mean(iteration_counts)
+                std_dev_iterations = np.std(iteration_counts)
 
-        print(f"Size {grid_size} - Average iterations to converge: {avg_iterations}")
-        print(f"Size {grid_size} - Average Max V: {np.max(convergence_info[grid_size]['values'])}, Average Mean V: {np.mean(convergence_info[grid_size]['values'])}")
+                # Store convergence info with parameters as keys
+                param_key = (grid_size, discount_factor, convergence_threshold)
+                convergence_info[param_key] = {
+                    'avg_iterations': avg_iterations,
+                    'std_dev_iterations': std_dev_iterations,
+                    'values': np.mean(cumulative_values, axis=0),
+                    'policies': cumulative_policies
+                }
+
+                print(f"Grid Size: {grid_size}, Discount Factor: {discount_factor}, "
+                      f"Convergence Threshold: {convergence_threshold}")
+                print(f"Average Iterations: {avg_iterations}, "
+                      f"Std Dev of Iterations: {std_dev_iterations}")
+                print(f"Average Max V: {np.max(convergence_info[param_key]['values'])}, "
+                      f"Average Mean V: {np.mean(convergence_info[param_key]['values'])}")
 
     if all(size in convergence_info for size in [5, 20]):
         print("\nConvergence Comparison:")
-        faster_convergence = 5 if convergence_info[5]['avg_iterations'] < convergence_info[10]['avg_iterations'] else 10
+        faster_convergence = 5 if convergence_info[5]['avg_iterations'] < convergence_info[20]['avg_iterations'] else 20
         print(f"Grid size {faster_convergence} converges faster on average.")
 
         same_policy = all(np.array_equal(convergence_info[5]['policies'][i], convergence_info[20]['policies'][i]) for i in
